@@ -1,0 +1,61 @@
+## Task - 00
+```sql
+CREATE VIEW v_persons_female AS
+SELECT  *  FROM person
+WHERE gender = 'female';
+
+SELECT  *  FROM v_persons_female;
+```
+
+
+## Task - 01
+```sql
+
+```
+
+## Task - 01
+```sql
+```
+## Task - 01
+```sql
+
+```
+## Task - 01
+```sql
+
+```
+
+## Task - 01
+```sql
+
+```
+
+## Task - 01
+```sql
+
+```
+
+## Task - 01
+```sql
+
+```
+
+## Task - 01
+```sql
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
