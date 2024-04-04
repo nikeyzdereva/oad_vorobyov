@@ -1,0 +1,100 @@
+## Task - 175
+```sql
+SELECT 
+    p.firstName,
+    p.lastName,
+    a.city,
+    a.state
+FROM 
+    Person p
+LEFT JOIN 
+    Address a ON p.personId = a.personId;
+```
+![image](https://github.com/nikeyzdereva/oad_vorobyov/assets/112609367/adb30c8a-59fa-4115-aa63-8feba19bd7df)
+
+
+## Task - 176
+```sql
+SELECT MAX(salary) AS SecondHighestSalary
+FROM Employee
+WHERE salary <> (SELECT MAX(salary) FROM Employee);
+
+```
+![image](https://github.com/nikeyzdereva/oad_vorobyov/assets/112609367/df71a6ba-ed52-4079-98ee-a0c0b0b50991)
+
+
+## Task - 177
+```sql
+CREATE OR REPLACE FUNCTION NthHighestSalary(n INT) 
+RETURNS INT AS $$
+DECLARE
+    result_salary INT;
+BEGIN
+    SELECT MAX(salary) INTO result_salary
+    FROM Employee Emp1
+    WHERE (n-1) = (
+        SELECT COUNT(DISTINCT Emp2.salary)
+        FROM Employee Emp2
+        WHERE Emp2.salary > Emp1.salary
+    );
+
+    RETURN result_salary;
+END;
+$$ LANGUAGE plpgsql;
+```
+![image](https://github.com/nikeyzdereva/oad_vorobyov/assets/112609367/97e5bdf7-c5ce-4166-8771-54307a4d6885)
+
+
+## Task - 178
+```sql
+SELECT score,
+        DENSE_RANK() OVER (ORDER BY score DESC) AS rank
+FROM Scores
+ORDER BY score DESC;
+```
+![image](https://github.com/nikeyzdereva/oad_vorobyov/assets/112609367/aae1fd0c-3071-454e-a073-1d1a5bc35b23)
+
+
+## Task - 181
+```sql
+SELECT e1.name AS Employee
+FROM Employee e1
+JOIN Employee e2 ON e1.managerId = e2.id
+WHERE e1.salary > e2.salary;
+```
+![image](https://github.com/nikeyzdereva/oad_vorobyov/assets/112609367/68bdcb5e-7c06-47fd-9fc2-8b7f995df6e2)
+
+
+## Task - 182
+```sql
+SELECT email
+FROM Person
+GROUP BY email having count( * ) > 1
+```
+![image](https://github.com/nikeyzdereva/oad_vorobyov/assets/112609367/af2d21dd-1082-4775-ad36-2e3579a86513)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
