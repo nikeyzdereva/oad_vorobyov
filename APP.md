@@ -1,95 +1,125 @@
-Сразу говорю, что я пыталась сделать, но ничего нормального не вышло(как обычно).
-Поэтому да.
 
 
-Структура проекта
+Основные компоненты
 ```
-/payment_service 
-- app.py 
-- transaction_manager.py
-- redis_cache.py
-- value_converter.py
+Transaction Service - управление транзакциями.
+Value Converter Service - конвертация данных.
+Transaction Manager Service - управление логами транзакций.
+Redis Cache - кэширование.
+Kafka - для обмена сообщениями.
 ```
-## app.py
+
+## Transaction_Service.py
 
 ```python
 from flask import Flask, request, jsonify
-from transaction_manager import TransactionManager
-from redis_cache import RedisCache
+from confluent_kafka import Producer
+import redis
 
 app = Flask(__name__)
-transaction_manager = TransactionManager()
-redis_cache = RedisCache()
+redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
+producer = Producer({'bootstrap.servers': 'localhost:9092'})
 
-@app.route('/process_transaction', methods=['POST'])
-def process_transaction():
-    data = request.json
-    transaction_id = transaction_manager.process_transaction(data)
-    return jsonify({"transaction_id": transaction_id}), 201
+@app.route('/transactions', methods=['POST'])
+def create_transaction():
+    transaction_data = request.json
+    transaction_id = transaction_data.get('id')
+    
+    producer.produce('transaction-topic', key=transaction_id, value=str(transaction_data))
+    producer.flush()
 
-@app.route('/get_transaction/<transaction_id>', methods=['GET'])
+    redis_client.set(transaction_id, str(transaction_data))
+    return jsonify({'status': 'Transaction created'}), 201
+
+@app.route('/transactions/<string:transaction_id>', methods=['GET'])
 def get_transaction(transaction_id):
-    transaction = redis_cache.get_transaction(transaction_id)
-    if transaction:
-        return jsonify(transaction)
-    return jsonify({"error": "Transaction not found"}), 404
+    transaction_data = redis_client.get(transaction_id)
+    
+    if transaction_data:
+        return jsonify({'transaction': transaction_data.decode('utf-8')}), 200
+    return jsonify({'error': 'Transaction not found'}), 404
 
 if __name__ == '__main__':
-    app.run(debug=True)
-```
-transaction_manager.py
-
-```python
-import json
-from kafka import KafkaProducer
-
-class TransactionManager:
-    def __init__(self):
-        self.producer = KafkaProducer(bootstrap_servers='localhost:9092',
-                                       value_serializer=lambda v: json.dumps(v).encode('utf-8'))
-
-    def process_transaction(self, transaction_data):
-        # Логика обработки транзакции
-        self.producer.send('transactions', transaction_data)
-        return transaction_data.get("id")  # Возвращаем ID транзакции
+    app.run(port=5001)
 
 ```
-
-
-redis_cache.py
-
+Value Converter Service.py
 
 ```python
-import redis
+from flask import Flask, request, jsonify
+from confluent_kafka import Producer, Consumer
 import json
 
-class RedisCache:
-    def __init__(self):
-        self.client = redis.Redis(host='localhost', port=6379, db=0)
+app = Flask(__name__)
+producer = Producer({'bootstrap.servers': 'localhost:9092'})
 
-    def cache_transaction(self, transaction_id, transaction_data):
-        self.client.set(transaction_id, json.dumps(transaction_data))
+@app.route('/convert', methods=['POST'])
+def convert_value():
+    conversion_request = request.json
+    request_id = conversion_request.get('id')
+    
+    # Отправка сообщения в Kafka
+    producer.produce('conversion-topic', key=request_id, value=json.dumps(conversion_request))
+    producer.flush()
+    return jsonify({'status': 'Conversion request sent'}), 200
 
-    def get_transaction(self, transaction_id):
-        transaction = self.client.get(transaction_id)
-        if transaction:
-            return json.loads(transaction)
-        return None
+@app.route('/convert/<string:request_id>', methods=['GET'])
+def get_converted_value(request_id):
+    # Здесь может быть логика для получения значения, например, из кэша или БД
+    return jsonify({'converted_value': 'example_value'}), 200
+
+if __name__ == '__main__':
+    app.run(port=5002)
+
 ```
 
-value_converter.py
+
+Transaction_Manager_Service.py
+
+
 ```python
-class ValueConverter:
-    @staticmethod
-    def convert(value):
-        # Конвертация значений
-        return value * 100  # Например, преобразуем в копейки
+from flask import Flask, jsonify
+
+app = Flask(__name__)
+
+@app.route('/transactions/log', methods=['GET'])
+def get_transaction_logs():
+    # Реализация получения логов
+    transaction_logs = [
+        {"transaction_id": "1", "status": "completed"},
+        {"transaction_id": "2", "status": "failed"},
+    ]
+    return jsonify(transaction_logs), 200
+
+if __name__ == '__main__':
+    app.run(port=5003)
 ```
 
+Consumer.py
+```python
+from confluent_kafka import Consumer
 
+def start_transaction_consumer():
+    consumer = Consumer({
+        'bootstrap.servers': 'localhost:9092',
+        'group.id': 'transaction_group',
+        'auto.offset.reset': 'earliest'
+    })
+    consumer.subscribe(['transaction-topic'])
 
-запуск - 
-export FLASK_APP=app.py
-flask run
+    while True:
+        message = consumer.poll(1.0)
+        if message is None:
+            continue
+        if message.error():
+            print(f"Consumer error: {message.error()}")
+            continue
 
+        # Обработка транзакции
+        print(f"Received transaction data: {message.value().decode('utf-8')}")
+
+if __name__ == '__main__':
+    start_transaction_consumer()
+```
+каждый сервис является независимым и взаимодействует с другими сервисами через определенные api
 
